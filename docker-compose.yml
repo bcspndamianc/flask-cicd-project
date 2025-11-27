@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  flask-app:
+    image: ghcr.io/bcspndamianc/flask-cicd-project:munoz-1.0.5
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-demo-key}
+    networks:
+      - traefik-public
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: on-failure
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.munoz.rule=Host(Muñoz.byronrm.com)"
+        - "traefik.http.routers.munoz.entrypoints=websecure"
+        - "traefik.http.routers.munoz.tls.certresolver=letsencrypt"
+        - "traefik.http.services.munoz.loadbalancer.server.port=5000"
+        - "traefik.docker.network=traefik-public"
+
+networks:
+  traefik-public:
+    external: true
