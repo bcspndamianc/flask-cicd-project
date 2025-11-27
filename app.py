@@ -1,11 +1,7 @@
 from flask import Flask, jsonify, request
-from openai import OpenAI
 import os
 
 app = Flask(__name__)
-
-# Configuración de OpenAI (usando variable de entorno)
-client = OpenAI(api_key=os.getenv('OPENAI_API_KEY', 'demo-key'))
 
 @app.route('/')
 def home():
@@ -32,15 +28,10 @@ def ai_endpoint():
                 "prompt": prompt
             })
         
-        # Llamada real a OpenAI
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=100
-        )
-        
+        # En producción, aquí iría la llamada real a OpenAI
+        # Por ahora retornamos una respuesta simulada
         return jsonify({
-            "response": response.choices[0].message.content,
+            "response": f"Respuesta simulada para: {prompt}",
             "prompt": prompt
         })
     except Exception as e:
