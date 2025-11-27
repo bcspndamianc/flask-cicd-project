@@ -1,0 +1,17 @@
+### 2.5 Crear `.dockerignore`
+```
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.git
+.gitignore
+.pytest_cache
+*.log
+.DS_Store
+```
+
+---
