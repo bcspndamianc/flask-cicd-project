@@ -2,133 +2,69 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches:
-      - Muñoz
+    branches: "Muñoz"
 
 permissions:
   contents: read
   packages: write
 
 jobs:
-  test:
-    name: Run Tests
+  build:
     runs-on: ubuntu-latest
-    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-      
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-      
-      - name: Run tests
-        env:
-          TESTING: true
-        run: |
-          pytest test_app.py -v
-
-  build-and-push:
-    name: Build and Push Docker Image
-    needs: test
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
+    - uses: actions/checkout@v4
     
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: 🔐 Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: 🏗️ Build and push Docker image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/flask-cicd-project:munoz-1.0.5
-            ghcr.io/${{ github.repository_owner }}/flask-cicd-project:latest
-
-  deploy:
-    name: Deploy to VPS
-    needs: build-and-push
-    runs-on: ubuntu-latest
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v3
+      with:
+        python-version: "3.11"
     
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: 🧾 Mostrar variables de conexión
-        run: |
-          echo "Desplegando en VPS:"
-          echo "Host: ${{ secrets.VPS_HOST }}"
-          echo "Usuario: ${{ secrets.VPS_USERNAME }}"
-          echo "Puerto: 8082"
-      
-      - name: 🧪 Probar conexión SSH
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USERNAME }}
-          password: ${{ secrets.VPS_SSH_KEY }}
-          port: 8082
-          script: |
-            echo "✅ Conexión exitosa desde GitHub Actions"
-            hostname
-            whoami
-            uptime
-      
-      - name: 📋 Copiar docker-compose.yml al VPS
-        uses: appleboy/scp-action@v1
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USERNAME }}
-          password: ${{ secrets.VPS_SSH_KEY }}
-          port: 8082
-          source: "docker-compose.yml"
-          target: "/root/stacks/munoz-stack/"
-      
-      - name: 🚀 Desplegar servicios en VPS
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USERNAME }}
-          password: ${{ secrets.VPS_SSH_KEY }}
-          port: 8082
-          script: |
-            echo "🔄 Desplegando servicios..."
-            cd /root/stacks/munoz-stack
-            
-            echo "🔐 Login en GitHub Container Registry"
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            
-            echo "📦 Descargando imagen desde GHCR"
-            docker pull ghcr.io/${{ github.repository_owner }}/flask-cicd-project:munoz-1.0.5
-            
-            echo "🛑 Deteniendo stack anterior (si existe)"
-            docker stack rm munoz-stack || true
-            
-            echo "⏳ Esperando 15 segundos..."
-            sleep 15
-            
-            echo "🚀 Desplegando nuevo stack"
-            docker stack deploy --with-registry-auth -c docker-compose.yml munoz-stack
-            
-            echo "📊 Servicios desplegados:"
-            docker service ls
-            
-            echo "🧹 Limpiando recursos no utilizados"
-            docker system prune -af
+    - name: Install dependencies
+      run: pip install -r requirements.txt
+    
+    - name: Run tests
+      run: pytest test_app.py -v
+    
+    - name: 🔐 Login to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: 🏗️ Build and push Docker image
+      uses: docker/build-push-action@v6
+      with:
+        push: true
+        tags: ghcr.io/bcspndamianc/flask-cicd-project:munoz-1.0.5
+    
+    - name: 📋 Copiar docker-compose.yml al VPS
+      uses: appleboy/scp-action@v0.1.7
+      with:
+        host: ${{ secrets.VPS_HOST }}
+        username: ${{ secrets.VPS_USERNAME }}
+        password: ${{ secrets.VPS_PASSWORD }}
+        port: ${{ secrets.VPS_SSH_PORT }}
+        source: "docker-compose.yml"
+        target: "/home/${{ secrets.VPS_USERNAME }}/munoz-stack"
+    
+    - name: 🚀 Deploy to VPS
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.VPS_HOST }}
+        username: ${{ secrets.VPS_USERNAME }}
+        password: ${{ secrets.VPS_PASSWORD }}
+        port: ${{ secrets.VPS_SSH_PORT }}
+        script: | 
+          echo "Desplegando servicios"
+          cd ~/munoz-stack
+          echo "Descargando la imagen desde GHCR"
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u bcspndamianc --password-stdin
+          docker pull ghcr.io/bcspndamianc/flask-cicd-project:munoz-1.0.5
+          echo "Deteniendo los servicios (stack)"
+          docker stack rm munoz || true
+          echo "Esperar 20 segundos..."
+          sleep 20
+          echo "Desplegando el stack"
+          docker stack deploy --with-registry-auth -c docker-compose.yml munoz 
+          docker ps

@@ -1,7 +1,5 @@
 import pytest
-import json
 from app import app
-import os
 
 @pytest.fixture
 def client():
@@ -9,28 +7,23 @@ def client():
     with app.test_client() as client:
         yield client
 
-def test_home_endpoint(client):
+def test_index(client):
     """Test del endpoint principal"""
     response = client.get('/')
     assert response.status_code == 200
-    data = json.loads(response.data)
-    assert data['status'] == 'success'
-    assert 'endpoints' in data
+    assert b'Dashboard' in response.data or b'NeonPanel' in response.data
 
-def test_health_endpoint(client):
-    """Test del endpoint de salud"""
-    response = client.get('/health')
+def test_support_get(client):
+    """Test que el formulario de soporte se carga"""
+    response = client.get('/')
     assert response.status_code == 200
-    data = json.loads(response.data)
-    assert data['status'] == 'healthy'
+    assert b'Soporte' in response.data
 
-def test_ai_endpoint(client):
-    """Test del endpoint de IA"""
-    os.environ['TESTING'] = 'true'
-    response = client.post('/ai',
-                          data=json.dumps({'prompt': 'Test prompt'}),
-                          content_type='application/json')
+def test_support_post(client):
+    """Test del envío de formulario"""
+    response = client.post('/support', data={
+        'name': 'Test User',
+        'email': 'test@example.com',
+        'message': 'Test message'
+    }, follow_redirects=True)
     assert response.status_code == 200
-    data = json.loads(response.data)
-    assert 'response' in data
-    assert 'prompt' in data
