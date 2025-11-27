@@ -86,7 +86,7 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USERNAME }}
           password: ${{ secrets.VPS_SSH_KEY }}
-          port: 22
+          port: 8082
           script: |
             cd /root/stacks/munoz-stack || mkdir -p /root/stacks/munoz-stack && cd /root/stacks/munoz-stack
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
